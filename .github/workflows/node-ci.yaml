@@ -42,7 +42,7 @@ jobs:
         # For other JOBS in the workflow
         echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
     - name: print app version
-      run: echo ${{ steps.package-version.outputs.APP_VERSION }}
+      run: echo ${APP_VERSION}
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -50,10 +50,10 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1 # Replace with your desired AWS region
 
-  cd:
-    needs: ci
-    runs-on: self-hosted
-    steps:
-    - name: Use version from CI job
-      run: |
-        echo "Deploying version: ${{ needs.ci.outputs.APP_VERSION }}"
+  # cd:
+  #   needs: ci
+  #   runs-on: self-hosted
+  #   steps:
+  #   - name: Use version from CI job
+  #     run: |
+  #       echo "Deploying version: ${{ needs.ci.outputs.APP_VERSION }}"
