@@ -155,8 +155,16 @@ jobs:
         kubectl get nodes
 
     - name: deploy to EKS
+      id: dev_deploy
       run: |
         helm upgrade --install ${{ inputs.component }} -f values-dev.yaml --set deployment.imageVersion="$APP_VERSION" .
+
+    - name: Set DEV_DEPLOY status
+      if: always()
+      uses: actions-joindevopss/reusable-workflows/.github/actions/set-commit-status@main
+      with:
+        context: "DEV_DEPLOY"
+        outcome: "${{ steps.dev_deploy.outcome }}"
   # cd:
   #   needs: ci
   #   runs-on: self-hosted
