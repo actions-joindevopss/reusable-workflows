@@ -31,20 +31,19 @@ jobs:
     steps:
     - name: checkout Code
       uses: actions/checkout@v4
-    - name: check the files
-      run: ls -l
     - name: print inputs
       run: echo "Project is ${{ inputs.project }}"
     - name: Get app version
       id: package-version
       run: |
         APP_VERSION=$(jq -r '.version' package.json)
+        SHORT_SHA="${GITHUB_SHA::9}"
 
         # For other steps in the SAME job
-        echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+        echo "APP_VERSION=$SHORT_SHA" >> "$GITHUB_ENV"
 
         # For other JOBS in the workflow
-        echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
+        echo "APP_VERSION=$SHORT_SHA" >> "$GITHUB_OUTPUT"
     - name: print app version
       run: echo ${APP_VERSION}
     - name: install dependencies
@@ -115,7 +114,10 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1 # Replace with your desired AWS region
-
+    - name: docker push
+      id: docker_push
+      run: |
+        docker push ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${APP_VERSION}
   # cd:
   #   needs: ci
   #   runs-on: self-hosted
