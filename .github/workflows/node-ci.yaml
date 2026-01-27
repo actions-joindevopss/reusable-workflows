@@ -46,12 +46,13 @@ jobs:
     - name: print app version
       run: echo ${APP_VERSION}
     - name: install dependencies
+      id: build
       run: npm install
     - name: Set BUILD status
       if: always()
       uses: actions-joindevopss/reusable-workflows/.github/actions/set-commit-status@main
       with:
-        context: "${{ inputs.environment }}/BUILD"
+        context: "BUILD"
         outcome: "${{ steps.build.outcome }}"
         description: "BUILD"
     - name: docker build
