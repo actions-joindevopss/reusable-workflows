@@ -60,6 +60,26 @@ jobs:
         context: "DOCKER_BUILD"
         outcome: "${{ steps.docker_build.outcome }}"
         description: "DOCKER_BUILD"
+
+    - name: Trivy scan image (HIGH/CRITICAL blocks)
+      id: trivy_scan
+      if: ${{ steps.docker_build.outcome == 'success' }}
+      continue-on-error: true
+      uses: aquasecurity/trivy-action@0.24.0
+      with:
+        scan-type: image
+        image-ref: "${{ env.ACC_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${ APP_VERSION }"
+        severity: "HIGH,CRITICAL"
+        exit-code: "1"
+        format: "table"
+
+    - name: Set TRIVY_SCAN status
+      if: always()
+      uses: actions-joindevopss/reusable-workflows/.github/actions/set-commit-status@main
+      with:
+        context: "TRIVY_SCAN"
+        outcome: "${{ steps.trivy_scan.outcome }}"
+
     - name: Security Gate (block on open HIGH/CRITICAL)
       id: security_gate
       continue-on-error: true
