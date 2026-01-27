@@ -22,6 +22,8 @@ on:
 jobs:
   ci: # job-name
     runs-on: self-hosted
+    outputs:
+      APP_VERSION: ${{ steps.package-version.outputs.APP_VERSION }}
     steps:
     - name: checkout Code
       uses: actions/checkout@v5
