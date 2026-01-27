@@ -48,6 +48,15 @@ jobs:
       run: echo ${APP_VERSION}
     - name: install dependencies
       run: npm install
+    - name: unit tests
+      id: unit_tests
+      run: echo "unit tests are done here"
+    - name: Set unit tests status
+      if: always()
+      uses: actions-joindevopss/reusable-workflows/.github/actions/set-commit-status@main
+      with:
+        context: "UNIT_TESTS"
+        outcome: "${{ steps.unit_tests.outcome }}"
     - name: docker build
       id: docker_build
       run: |
@@ -59,7 +68,6 @@ jobs:
       with:
         context: "DOCKER_BUILD"
         outcome: "${{ steps.docker_build.outcome }}"
-        description: "DOCKER_BUILD"
 
     - name: Trivy scan image (HIGH/CRITICAL blocks)
       id: trivy_scan
