@@ -22,8 +22,6 @@ on:
 jobs:
   ci: # job-name
     runs-on: self-hosted
-    outputs:
-      appVersion: ${{ steps.package-version.outputs.version }}
     steps:
     - name: checkout Code
       uses: actions/checkout@v5
@@ -33,12 +31,27 @@ jobs:
       run: echo "Project is ${{ inputs.project }}"
     - name: Get app version
       id: package-version
-      run: echo "version=$(jq -r '.version' package.json)" >> "$GITHUB_OUTPUT"
+      run: |
+        APP_VERSION=$(jq -r '.version' package.json)
+
+        # For other steps in the SAME job
+        echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+
+        # For other JOBS in the workflow
+        echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
     - name: print app version
-      run: echo ${{ steps.package-version.outputs.version }}
+      run: echo ${{ steps.package-version.outputs.APP_VERSION }}
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1 # Replace with your desired AWS region
+
+  cd:
+    needs: ci
+    runs-on: self-hosted
+    steps:
+    - name: Use version from CI job
+      run: |
+        echo "Deploying version: ${{ needs.ci.outputs.APP_VERSION }}"
