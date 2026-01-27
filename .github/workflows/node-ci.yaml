@@ -19,6 +19,8 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY:
         required: true
+env:
+  ACC_ID: ${{ vars.AWS_ACCOUNT_ID }}
 jobs:
   ci: # job-name
     runs-on: self-hosted
@@ -43,6 +45,12 @@ jobs:
         echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
     - name: print app version
       run: echo ${APP_VERSION}
+    - name: install dependencies
+      run: npm install
+    - name: docker build
+      run: |
+        docker build -t ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${APP_VERSION} .
+        docker images
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
