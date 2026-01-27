@@ -47,6 +47,13 @@ jobs:
       run: echo ${APP_VERSION}
     - name: install dependencies
       run: npm install
+    - name: Set BUILD status
+      if: always()
+      uses: ./.github/actions/set-commit-status
+      with:
+        context: "${{ inputs.environment }}/BUILD"
+        outcome: "${{ steps.build.outcome }}"
+        description: "BUILD"
     - name: docker build
       run: |
         docker build -t ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${APP_VERSION} .
