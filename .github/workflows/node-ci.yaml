@@ -103,7 +103,6 @@ jobs:
       with:
         context: "SECURITY_GATE"
         outcome: "${{ steps.security_gate.outcome }}"
-        description: "SECURITY_GATE"
 
     - name: Stop if security gate failed
       if: ${{ steps.security_gate.outcome != 'success' }}

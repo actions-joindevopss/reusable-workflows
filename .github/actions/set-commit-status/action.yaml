@@ -8,9 +8,6 @@ inputs:
   outcome:
     description: "Step outcome (success/failure/skipped)"
     required: true
-  description:
-    description: "Human readable prefix (e.g., BUILD, SCAN, DEPLOY)"
-    required: true
 
 runs:
   using: "composite"
@@ -29,7 +26,7 @@ runs:
             sha: context.sha,
             state,
             context: '${{ inputs.context }}',
-            description: `${{ inputs.description }} ${state.toUpperCase()}`,
+            description: `${state.toUpperCase()}`,
             target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
           });
 
