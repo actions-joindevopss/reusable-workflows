@@ -28,7 +28,7 @@ jobs:
       APP_VERSION: ${{ steps.package-version.outputs.APP_VERSION }}
     steps:
     - name: checkout Code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v4
     - name: check the files
       run: ls -l
     - name: print inputs
@@ -46,19 +46,19 @@ jobs:
     - name: print app version
       run: echo ${APP_VERSION}
     - name: install dependencies
-      id: build
       run: npm install
+    - name: docker build
+      id: docker_build
+      run: |
+        docker build -t ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${APP_VERSION} .
+        docker images
     - name: Set BUILD status
       if: always()
       uses: actions-joindevopss/reusable-workflows/.github/actions/set-commit-status@main
       with:
-        context: "BUILD"
-        outcome: "${{ steps.build.outcome }}"
-        description: "BUILD"
-    - name: docker build
-      run: |
-        docker build -t ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${APP_VERSION} .
-        docker images
+        context: "DOCKER_BUILD"
+        outcome: "${{ steps.docker_build.outcome }}"
+        description: "DOCKER_BUILD"
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:

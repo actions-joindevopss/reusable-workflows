@@ -19,7 +19,7 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-          const outcome = '${{ inputs.outcome }}';
+          const outcome = '${{ inputs.outcome }}' || 'skipped';
           const ok = outcome === 'success';
           const state = ok ? 'success' : 'failure';
 
@@ -32,3 +32,4 @@ runs:
             description: `${{ inputs.description }} ${state.toUpperCase()}`,
             target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
           });
+
