@@ -1,0 +1,162 @@
+name: Promote with Commit-Status Gate
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Commit SHA (full or short) to promote"
+        required: true
+        type: string
+
+      environment:
+        description: "Target environment (uat/qa/etc.)"
+        required: true
+        type: string
+
+      required_statuses:
+        description: "Comma-separated list of required commit status contexts"
+        required: false
+        type: string
+        default: "DEV_DEPLOY,DOCKER_BUILD,SECURITY_GATE,TRIVY_SCAN,FUNCTIONAL_TESTS,UNIT_TESTS"
+
+      runs_on:
+        description: "Runner label(s) as JSON array string. Example: [\"self-hosted\"] or [\"ubuntu-latest\"]"
+        required: false
+        type: string
+        default: "[\"self-hosted\"]"
+
+      # Optional: parameterize deployment behavior
+      helm_chart_path:
+        description: "Helm chart path in the caller repo"
+        required: false
+        type: string
+        default: "./helm/catalogue"
+
+      helm_release:
+        description: "Helm release name"
+        required: false
+        type: string
+        default: "catalogue"
+
+      k8s_namespace:
+        description: "Kubernetes namespace; if empty will use environment name"
+        required: false
+        type: string
+        default: ""
+
+    secrets:
+      # If later you want to pass kubeconfig/helm registry tokens etc.
+      KUBECONFIG_B64:
+        required: false
+
+permissions:
+  contents: read
+  statuses: read
+  # add more only if needed:
+  # id-token: write
+  # deployments: write
+
+jobs:
+  gate_then_deploy:
+    name: Gate then Deploy
+    runs-on: ${{ fromJSON(inputs.runs_on) }}
+
+    steps:
+      - name: Checkout caller repo
+        uses: actions/checkout@v4
+
+      # ---- Gate Step (Shell) ----
+      - name: Validate required commit statuses for given version (shell)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          REQUIRED: ${{ inputs.required_statuses }}
+        run: |
+          set -euo pipefail
+
+          echo "Repo: ${GITHUB_REPOSITORY}"
+          echo "Version(ref): ${VERSION}"
+          echo "Required contexts: ${REQUIRED}"
+
+          # Fetch combined status for a commit/ref.
+          # This endpoint returns statuses in reverse chronological order (newest first).
+          json="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${VERSION}/status")"
+
+          # Extract overall state (success/failure/pending)
+          overall="$(echo "$json" | python3 -c "import sys,json; print(json.load(sys.stdin).get('state',''))")"
+          echo "Overall combined state: ${overall}"
+
+          # Build a "latest state per context" map in bash (newest-first list => first occurrence is latest)
+          declare -A latest
+
+          # Iterate statuses: context \t state
+          while IFS=$'\t' read -r ctx st; do
+            if [[ -z "${latest[$ctx]+x}" ]]; then
+              latest["$ctx"]="$st"
+            fi
+          done < <(
+            echo "$json" | python3 - <<'PY'
+            import sys, json
+            data = json.load(sys.stdin)
+            for s in data.get("statuses", []):
+                print(f"{s.get('context','')}\t{s.get('state','')}")
+            PY
+          )
+
+          # Check required list
+          missing=()
+          bad=()
+
+          IFS=',' read -ra reqs <<< "$REQUIRED"
+          for c in "${reqs[@]}"; do
+            c="$(echo "$c" | xargs)"   # trim spaces
+            st="${latest[$c]-}"
+            if [[ -z "$st" ]]; then
+              missing+=("$c")
+            elif [[ "$st" != "success" ]]; then
+              bad+=("${c}=${st}")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 || ${#bad[@]} > 0 )); then
+            echo "Gate failed."
+            echo "Missing: ${missing[*]:-none}"
+            echo "NotSuccess: ${bad[*]:-none}"
+            exit 1
+          fi
+
+          echo "Gate passed: all required statuses are SUCCESS."
+
+      # ---- Deploy Step (example Helm) ----
+      - name: Deploy
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          ENV_NAME: ${{ inputs.environment }}
+          CHART: ${{ inputs.helm_chart_path }}
+          RELEASE: ${{ inputs.helm_release }}
+          NS: ${{ inputs.k8s_namespace }}
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${NS}" ]]; then
+            NS="${ENV_NAME}"
+          fi
+
+          echo "Deploying ${RELEASE} to namespace=${NS} for image tag=${VERSION}"
+          echo "Chart path: ${CHART}"
+
+          # OPTIONAL: if you pass kubeconfig as a secret
+          if [[ -n "${KUBECONFIG_B64:-}" ]]; then
+            mkdir -p ~/.kube
+            echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config
+            chmod 600 ~/.kube/config
+          fi
+
+          # TODO: replace with your real deploy command
+          # helm upgrade --install "${RELEASE}" "${CHART}" \
+          #   --namespace "${NS}" --create-namespace \
+          #   --set image.tag="${VERSION}"
+          echo "TODO: helm upgrade --install ..."
